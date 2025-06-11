@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
+const LinkPreviewCard = ({ url, className = "" }) => {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -12,50 +12,53 @@ const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
     const fetchPreview = async () => {
       try {
         setLoading(true);
-        
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Mock preview data based on URL
-        const mockPreviews = {
-          "/blog/getting-started": {
-            title: "Getting Started Guide",
-            description: "Learn the basics and get up and running quickly with our comprehensive starter guide. This tutorial covers everything you need to know to become productive.",
-            image: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23667eea'/><circle cx='100' cy='100' r='20' fill='%23764ba2' opacity='0.7'/><circle cx='300' cy='80' r='30' fill='%23f093fb' opacity='0.6'/><circle cx='200' cy='200' r='25' fill='%234facfe' opacity='0.8'/><text x='200' y='150' text-anchor='middle' fill='white' font-size='24' font-family='Arial'>Guide</text></svg>",
-            domain: "yoursite.com"
-          },
-          "/products/dashboard": {
-            title: "Analytics Dashboard",
-            description: "Powerful analytics and insights for your business. Track performance, monitor key metrics, and make data-driven decisions with our comprehensive dashboard.",
-            image: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23ff6b6b'/><rect x='50' y='50' width='300' height='200' fill='white' opacity='0.9' rx='10'/><rect x='70' y='80' width='60' height='100' fill='%23ff6b6b'/><rect x='150' y='120' width='60' height='60' fill='%23ff6b6b'/><rect x='230' y='100' width='60' height='80' fill='%23ff6b6b'/><rect x='310' y='90' width='60' height='90' fill='%23ff6b6b'/></svg>",
-            domain: "yoursite.com"
-          }
-        };
-
-        const previewData = mockPreviews[url] || {
-          title: "Page Preview",
-          description: "This is a preview of the linked page content with detailed information about what you'll find when you visit this page.",
-          image: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23999'/></svg>",
-          domain: "yoursite.com"
-        };
-
-        setPreview(previewData);
         setError(false);
+        
+        // Call your preview API
+        const response = await fetch(`http://localhost:5000/api/preview?url=${encodeURIComponent(url)}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const previewData = await response.json();
+        
+        // Fallback image if none found
+        if (!previewData.image) {
+          previewData.image = `https://via.placeholder.com/400x300/667eea/ffffff?text=${encodeURIComponent(previewData.domain)}`;
+        }
+        
+        setPreview(previewData);
+        
       } catch (err) {
+        console.error('Failed to fetch preview:', err);
         setError(true);
+        
+        // Fallback preview data
+        setPreview({
+          title: 'Unable to load preview',
+          description: 'Click to visit this page',
+          image: 'https://via.placeholder.com/400x300/999999/ffffff?text=Preview+Unavailable',
+          domain: url.replace(/^https?:\/\//, '').split('/')[0],
+          url: url
+        });
+        
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPreview();
+    if (url) {
+      fetchPreview();
+    }
   }, [url]);
 
   if (loading) {
     return (
       <div 
-        className="w-80 h-48 rounded-xl bg-gray-200 animate-pulse flex items-center justify-center border border-gray-300"
+        className={`w-80 h-48 rounded-xl bg-gray-200 animate-pulse flex items-center justify-center border border-gray-300 ${className}`}
         style={{
+          flexShrink: 0,
           transform: 'scale(1)',
           transition: 'transform 0.3s ease-out'
         }}
@@ -65,11 +68,12 @@ const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
     );
   }
 
-  if (error || !preview) {
+  if (error && !preview) {
     return (
       <div 
-        className="w-80 h-48 rounded-xl bg-gray-300 flex items-center justify-center border border-gray-300"
+        className={`w-80 h-48 rounded-xl bg-gray-300 flex items-center justify-center border border-gray-300 ${className}`}
         style={{
+          flexShrink: 0,
           transform: 'scale(1)',
           transition: 'transform 0.3s ease-out'
         }}
@@ -82,10 +86,13 @@ const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
   return (
     <a 
       href={url}
-      className="relative block w-80 h-48 rounded-xl overflow-hidden shadow-lg border border-gray-300 bg-white"
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`relative block w-80 h-48 rounded-xl overflow-hidden shadow-lg border border-gray-300 bg-white ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
+        flexShrink: 0,
         transform: isHovered ? 'scale(1.05)' : 'scale(1)',
         boxShadow: isHovered ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
         transition: 'all 0.3s ease-out'
@@ -93,9 +100,9 @@ const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
     >
       {/* Preview Image */}
       <div 
-        className="absolute inset-0 bg-cover bg-center"
+        className="absolute inset-0 bg-cover bg-center bg-gray-100"
         style={{
-          backgroundImage: `url('${preview.image}')`
+          backgroundImage: `url('${preview?.image}')`
         }}
       />
       
@@ -109,13 +116,13 @@ const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
         }}
       >
         <div className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: '#93c5fd' }}>
-          {preview.domain}
+          {preview?.domain}
         </div>
         <h3 className="text-white text-xl font-bold mb-3 leading-tight">
-          {preview.title}
+          {preview?.title}
         </h3>
         <p className="text-gray-100 text-sm leading-relaxed">
-          {preview.description}
+          {preview?.description}
         </p>
       </div>
     </a>
@@ -239,11 +246,16 @@ const LinkPreviewCard = ({ url = "/blog/getting-started" }) => {
     
     export default function App() {
       return (
-        <div className="p-8 bg-gray-100 min-h-screen flex items-center justify-center gap-8">
-          <LinkPreviewCard url="/blog/getting-started" />
-          <LinkPreviewCard url="/products/dashboard" />
-        </div>
-      );
+        <>
+          <div className="p-8 bg-gray-100 min-h-screen flex items-center justify-center gap-8">
+            
+          <h1>Noah Hopkins</h1>
+            <LinkPreviewCard url="https://github.com" />
+            <LinkPreviewCard url="https://stackoverflow.com" />
+          </div>
+          </>
+        );
+      
       // <FilterableProductTable products={PRODUCTS} />;
     }
     
